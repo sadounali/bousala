@@ -1,0 +1,91 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user preferences and basic info.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "preferences": {
+          "type": "object",
+          "properties": {
+            "theme": { "type": "string", "enum": ["light", "dark", "system"] }
+          }
+        }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "AnalysisHistory": {
+      "title": "Sustainability Analysis",
+      "description": "Individual sustainability diagnostic results.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "fileName": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "result": {
+          "type": "object",
+          "properties": {
+            "overallScore": { "type": "number" },
+            "metrics": { "type": "array" },
+            "sdgs": { "type": "array" },
+            "pillars": { "type": "array" },
+            "strengths": { "type": "array" },
+            "opportunities": { "type": "array" },
+            "suggestions": { "type": "array" }
+          }
+        }
+      },
+      "required": ["userId", "fileName", "timestamp", "result"]
+    },
+    "StudentProfile": {
+      "title": "Student Pedagogical Info",
+      "description": "Stores student specialized academic details.",
+      "type": "object",
+      "properties": {
+        "birthWilaya": { "type": "string" },
+        "faculty": { "type": "string" },
+        "department": { "type": "string" },
+        "specialty": { "type": "string" },
+        "studentCardNumber": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "email": { "type": "string", "format": "email" }
+      },
+      "required": ["studentCardNumber", "email"]
+    },
+    "ThesisInfo": {
+      "title": "Graduation Thesis Info",
+      "description": "Details about the student's graduation memo/project.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "supervisor": { "type": "string" },
+        "participants": { "type": "string" },
+        "type": { "type": "string", "enum": ["License", "Master", "Doctorate", "Other"] },
+        "graduationYear": { "type": "integer" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile document."
+    },
+    "/students/{userId}": {
+      "schema": "StudentProfile",
+      "description": "Detailed student pedagogical information."
+    },
+    "/theses/{userId}": {
+      "schema": "ThesisInfo",
+      "description": "Information about the student's graduation thesis."
+    },
+    "/analysisHistory/{analysisId}": {
+      "schema": "AnalysisHistory",
+      "description": "Collection of sustainability analyses."
+    }
+  }
+}
