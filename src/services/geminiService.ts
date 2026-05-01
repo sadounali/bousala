@@ -1,11 +1,39 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+async function callGemini(prompt: string, filePart: any, schema: any): Promise<any> {
+  const body: any = {
+    model: "gemini-2.0-flash",
+    contents: filePart 
+      ? { parts: [filePart, { text: prompt }] }
+      : { parts: [{ text: prompt }] },
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: schema
+    }
+  };
+
+  const response = await fetch("/api/gemini", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err?.error?.message || "API error");
+  }
+
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("Empty AI output");
+
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  return JSON.parse(jsonMatch ? jsonMatch[0] : text);
+}
 
 export async function analyzeSustainabilityDocument(
-  text: string, 
-  file?: File, 
+  text: string,
+  file?: File,
   onProgress?: (stage: string, percent: number) => void
 ): Promise<AnalysisResult> {
   const retryLimit = 1;
@@ -13,8 +41,7 @@ export async function analyzeSustainabilityDocument(
 
   const runAnalysis = async (): Promise<AnalysisResult> => {
     let filePart: any = null;
-    
-    // Check file size recommendation
+
     if (file && file.size > 5 * 1024 * 1024) {
       console.warn("File is larger than 5MB. This might cause timeouts.");
     }
@@ -29,7 +56,6 @@ export async function analyzeSustainabilityDocument(
       filePart = { inlineData: { data: base64, mimeType: file.type || "application/pdf" } };
     }
 
-    // Consolidated Prompt for efficiency - sending file once
     const consolidatedPrompt = `Analyze this research/document for sustainability and SDG alignment.
     
     REQUIRED OUTPUT SECTIONS:
@@ -47,9 +73,8 @@ export async function analyzeSustainabilityDocument(
     Context: ${text.substring(0, 5000)}
     `;
 
-    // Simulate progress milestones as requested
     onProgress?.('reading', 10);
-    
+
     let simulatedPercent = 10;
     const progressInterval = setInterval(() => {
       if (simulatedPercent < 80) {
@@ -61,7 +86,7 @@ export async function analyzeSustainabilityDocument(
           simulatedPercent += 3;
           if (simulatedPercent >= 60) onProgress?.('sdg_mapping', 60);
           else onProgress?.('basic_info', simulatedPercent);
-        } else if (simulatedPercent < 80) {
+        } else {
           simulatedPercent += 2;
           if (simulatedPercent >= 80) onProgress?.('detailed_matrix', 80);
           else onProgress?.('sdg_mapping', simulatedPercent);
@@ -70,60 +95,7 @@ export async function analyzeSustainabilityDocument(
     }, 1500);
 
     try {
-      const result = await callGemini(consolidatedPrompt, filePart, {
-        type: Type.OBJECT,
-        required: ["specialization", "sustainabilityField", "overallScore", "metrics", "sdgs", "benchmarks", "pillars", "strengths", "opportunities", "suggestions", "recommendations"],
-        properties: {
-          specialization: { type: Type.STRING },
-          sustainabilityField: { type: Type.STRING },
-          overallScore: { type: Type.NUMBER },
-          metrics: { type: Type.ARRAY, items: { type: Type.OBJECT, required: ["name", "score", "description"], properties: { name: { type: Type.STRING }, score: { type: Type.NUMBER }, description: { type: Type.STRING } } } },
-          sdgs: { 
-            type: Type.ARRAY, 
-            items: { 
-              type: Type.OBJECT, 
-              required: ["id", "label", "name", "percentage", "strength", "justification", "targets"], 
-              properties: { 
-                id: { type: Type.NUMBER }, 
-                label: { type: Type.STRING }, 
-                name: { type: Type.STRING }, 
-                percentage: { type: Type.NUMBER }, 
-                strength: { type: Type.STRING }, 
-                justification: { type: Type.STRING },
-                targets: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    required: ["id", "description", "indicators"],
-                    properties: {
-                      id: { type: Type.STRING },
-                      description: { type: Type.STRING },
-                      indicators: {
-                        type: Type.ARRAY,
-                        items: {
-                          type: Type.OBJECT,
-                          required: ["id", "description", "assessment"],
-                          properties: {
-                            id: { type: Type.STRING },
-                            description: { type: Type.STRING },
-                            assessment: { type: Type.OBJECT, required: ["measuresDirectly", "suggestsSolutions", "collectsData", "contributionScore", "notes"], properties: { measuresDirectly: { type: Type.BOOLEAN }, suggestsSolutions: { type: Type.BOOLEAN }, collectsData: { type: Type.BOOLEAN }, contributionScore: { type: Type.NUMBER }, notes: { type: Type.STRING } } }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              } 
-            } 
-          },
-          benchmarks: { type: Type.ARRAY, items: { type: Type.OBJECT, required: ["name", "score", "benchmark", "description", "notes"], properties: { name: { type: Type.STRING }, score: { type: Type.NUMBER }, benchmark: { type: Type.NUMBER }, description: { type: Type.STRING }, notes: { type: Type.STRING } } } },
-          pillars: { type: Type.ARRAY, items: { type: Type.OBJECT, required: ["name", "score", "comment", "notes"], properties: { name: { type: Type.STRING }, score: { type: Type.NUMBER }, comment: { type: Type.STRING }, notes: { type: Type.STRING } } } },
-          strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
-          opportunities: { type: Type.ARRAY, items: { type: Type.STRING } },
-          suggestions: { type: Type.ARRAY, items: { type: Type.OBJECT, required: ["category", "gap", "suggestion", "priority", "notes"], properties: { category: { type: Type.STRING }, gap: { type: Type.STRING }, suggestion: { type: Type.STRING }, priority: { type: Type.STRING }, notes: { type: Type.STRING } } } },
-          recommendations: { type: Type.OBJECT, required: ["otherTargets", "futureIndicators", "complementarySpecializations"], properties: { otherTargets: { type: Type.ARRAY, items: { type: Type.STRING } }, futureIndicators: { type: Type.ARRAY, items: { type: Type.STRING } }, complementarySpecializations: { type: Type.ARRAY, items: { type: Type.STRING } } } }
-        }
-      });
+      const result = await callGemini(consolidatedPrompt, filePart, schema);
       clearInterval(progressInterval);
       onProgress?.('complete', 100);
       return result;
@@ -140,47 +112,32 @@ export async function analyzeSustainabilityDocument(
       console.error(`Analysis attempt ${attempt} failed:`, err);
       if (attempt === retryLimit) {
         if (err.message?.includes("Timeout") || (file && file.size > 5 * 1024 * 1024)) {
-            throw new Error("الملف كبير جداً أو الاستجابة بطيئة. يُنصح بملف أقل من 5 ميغابايت.");
+          throw new Error("الملف كبير جداً أو الاستجابة بطيئة. يُنصح بملف أقل من 5 ميغابايت.");
         }
         throw err;
       }
       attempt++;
       onProgress?.('retrying', 0);
-      // Wait a bit before retry
       await new Promise(r => setTimeout(r, 2000));
     }
   }
   throw new Error("Analysis failed after retries.");
 }
 
-async function callGemini(prompt: string, filePart: any, schema: any): Promise<any> {
-    const contents = filePart ? { parts: [filePart, { text: prompt }] } : { parts: [{ text: prompt }] };
-    
-    // 120 seconds timeout as requested
-    const timeout = 120000;
-    const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), timeout);
-
-    try {
-      const response = await ai.models.generateContent({
-        model: "gemini-flash-latest",
-        contents: contents, // contents already has parts
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: schema
-        }
-      });
-
-      clearTimeout(timeoutId);
-      const textOutput = response.text;
-      if (!textOutput) throw new Error("Empty AI output");
-
-      const jsonMatch = textOutput.match(/\{[\s\S]*\}/);
-      return JSON.parse(jsonMatch ? jsonMatch[0] : textOutput);
-    } catch (err: any) {
-      if (err.name === 'AbortError') {
-        throw new Error("Timeout: Gemini API took too long to respond (120s).");
-      }
-      throw err;
-    }
-}
+const schema = {
+  type: "OBJECT",
+  required: ["specialization","sustainabilityField","overallScore","metrics","sdgs","benchmarks","pillars","strengths","opportunities","suggestions","recommendations"],
+  properties: {
+    specialization: { type: "STRING" },
+    sustainabilityField: { type: "STRING" },
+    overallScore: { type: "NUMBER" },
+    metrics: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, score: { type: "NUMBER" }, description: { type: "STRING" } } } },
+    sdgs: { type: "ARRAY", items: { type: "OBJECT", properties: { id: { type: "NUMBER" }, label: { type: "STRING" }, name: { type: "STRING" }, percentage: { type: "NUMBER" }, strength: { type: "STRING" }, justification: { type: "STRING" }, targets: { type: "ARRAY", items: { type: "OBJECT", properties: { id: { type: "STRING" }, description: { type: "STRING" }, indicators: { type: "ARRAY", items: { type: "OBJECT", properties: { id: { type: "STRING" }, description: { type: "STRING" }, assessment: { type: "OBJECT", properties: { measuresDirectly: { type: "BOOLEAN" }, suggestsSolutions: { type: "BOOLEAN" }, collectsData: { type: "BOOLEAN" }, contributionScore: { type: "NUMBER" }, notes: { type: "STRING" } } } } } } } } } } } },
+    benchmarks: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, score: { type: "NUMBER" }, benchmark: { type: "NUMBER" }, description: { type: "STRING" }, notes: { type: "STRING" } } } },
+    pillars: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, score: { type: "NUMBER" }, comment: { type: "STRING" }, notes: { type: "STRING" } } } },
+    strengths: { type: "ARRAY", items: { type: "STRING" } },
+    opportunities: { type: "ARRAY", items: { type: "STRING" } },
+    suggestions: { type: "ARRAY", items: { type: "OBJECT", properties: { category: { type: "STRING" }, gap: { type: "STRING" }, suggestion: { type: "STRING" }, priority: { type: "STRING" }, notes: { type: "STRING" } } } },
+    recommendations: { type: "OBJECT", properties: { otherTargets: { type: "ARRAY", items: { type: "STRING" } }, futureIndicators: { type: "ARRAY", items: { type: "STRING" } }, complementarySpecializations: { type: "ARRAY", items: { type: "STRING" } } } }
+  }
+};
