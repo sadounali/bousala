@@ -127,6 +127,66 @@ function scoreFromCount(count: number, max: number = 10): number {
   return Math.min(5, parseFloat(((count / max) * 5).toFixed(1)));
 }
 
+// ========== تصنيف التخصصات وقائمة SDGs المحظورة ==========
+
+const SPECIALIZATION_CATEGORY: Record<string, string> = {
+  // تقنية وهندسة
+  "الهندسة الميكانيكية": "engineering",
+  "الهندسة الكهربائية": "engineering",
+  "هندسة الطرائق": "engineering",
+  "الهندسة المدنية": "engineering",
+  "الإعلام الآلي": "it",
+  "الرياضيات": "science",
+  "الفيزياء": "science",
+  "الكيمياء": "science",
+  // طبيعة وحياة
+  "البيولوجيا": "life",
+  "الفلاحة": "life",
+  // اقتصاد
+  "العلوم الاقتصادية": "economics",
+  "العلوم التجارية": "economics",
+  "علوم التسيير": "economics",
+  // آداب ولغات
+  "اللغة العربية وآدابها": "humanities",
+  "اللغة الإنجليزية": "humanities",
+  "اللغة الفرنسية": "humanities",
+  // علوم اجتماعية
+  "العلوم الاجتماعية": "social",
+  "العلوم الإنسانية": "social",
+  "علم النفس": "social",
+  "علم الاجتماع": "social",
+  // حقوق وسياسة
+  "الحقوق": "law",
+  "العلوم السياسية": "law",
+  // إعلام واتصال
+  "علوم الإعلام والاتصال": "media",
+  "الصحافة والإعلام": "media",
+  "تكنولوجيا المعلومات والاتصال والمجتمع": "media",
+  "الاتصال والعلاقات العامة": "media",
+  "السمعي البصري": "media",
+  "الإعلام الرقمي": "media",
+  "علم المكتبات": "media",
+  "علم المعلومات والتوثيق": "media",
+};
+
+// SDGs المحظورة لكل فئة تخصص
+const BLOCKED_SDGS: Record<string, number[]> = {
+  "media":      [2, 6, 7, 11, 12, 13, 14, 15],
+  "law":        [2, 6, 7, 12, 13, 14, 15],
+  "humanities": [2, 6, 7, 12, 13, 14, 15],
+  "social":     [2, 6, 7, 12, 13, 14, 15],
+  "economics":  [3, 6, 13, 14, 15],
+  "engineering":[1, 2, 5, 10],
+  "it":         [1, 2, 5, 6, 12, 14, 15],
+  "science":    [1, 2, 5, 10, 11],
+  "life":       [4, 8, 10, 16, 17],
+};
+
+function getBlockedSDGs(specialization: string): number[] {
+  const category = SPECIALIZATION_CATEGORY[specialization];
+  return category ? (BLOCKED_SDGS[category] || []) : [];
+}
+
 function detectSpecialization(text: string): string {
   let best = { spec: "غير محدد", score: 0 };
   for (const [spec, sdgIds] of Object.entries(SDG_MAP)) {
@@ -139,15 +199,23 @@ function detectSpecialization(text: string): string {
 
 function getSDGsForSpecialization(specialization: string, text: string): number[] {
   const fromMap = SDG_MAP[specialization] || [];
-  // أضف SDGs إضافية بناءً على محتوى النص
+  const blocked = getBlockedSDGs(specialization);
+
+  // أضف SDGs إضافية بناءً على محتوى النص مع تصفية المحظورة
   const extra: number[] = [];
   for (const [id, info] of Object.entries(SDG_INFO)) {
+    const numId = Number(id);
+    if (blocked.includes(numId)) continue; // تجاهل المحظورة
     const count = countKeywords(text, info.keywords);
-    if (count >= 3 && !fromMap.includes(Number(id))) {
-      extra.push(Number(id));
+    if (count >= 3 && !fromMap.includes(numId)) {
+      extra.push(numId);
     }
   }
-  return [...new Set([...fromMap, ...extra])].slice(0, 8);
+
+  // تصفية fromMap أيضاً من المحظورة
+  const filtered = fromMap.filter(id => !blocked.includes(id));
+
+  return [...new Set([...filtered, ...extra])].slice(0, 8);
 }
 
 function buildSDGs(sdgIds: number[], text: string) {
@@ -227,14 +295,33 @@ function buildMetrics(text: string) {
   ];
 }
 
-function buildPillars(text: string) {
-  const e = scoreFromCount(countKeywords(text, METRIC_KEYWORDS.environmental));
-  const s = scoreFromCount(countKeywords(text, METRIC_KEYWORDS.social));
-  const g = scoreFromCount(countKeywords(text, METRIC_KEYWORDS.economic));
+function buildPillars(text: string, specialization: string) {
+  const category = SPECIALIZATION_CATEGORY[specialization] || "general";
+
+  // وزن الأبعاد حسب التخصص
+  const weights: Record<string, [number, number, number]> = {
+    "media":      [0.3, 1.2, 1.5], // بيئة منخفضة، مجتمع متوسط، حوكمة عالية
+    "law":        [0.2, 1.0, 1.8],
+    "humanities": [0.2, 1.2, 1.3],
+    "social":     [0.5, 1.5, 1.0],
+    "economics":  [0.5, 1.0, 1.5],
+    "engineering":[1.5, 0.8, 1.0],
+    "it":         [0.8, 1.0, 1.5],
+    "science":    [1.2, 0.8, 1.0],
+    "life":       [1.8, 1.0, 0.5],
+    "general":    [1.0, 1.0, 1.0],
+  };
+
+  const [we, ws, wg] = weights[category] || [1, 1, 1];
+
+  const e = Math.min(5, scoreFromCount(countKeywords(text, METRIC_KEYWORDS.environmental)) * we);
+  const s = Math.min(5, scoreFromCount(countKeywords(text, METRIC_KEYWORDS.social)) * ws);
+  const g = Math.min(5, scoreFromCount(countKeywords(text, METRIC_KEYWORDS.economic)) * wg);
+
   return [
-    { name: "البيئة (E)", score: e, comment: "التأثير البيئي للبحث", notes: "يقيس مدى تناول الدراسة للأبعاد البيئية ضمن إطار ESG" },
-    { name: "المجتمع (S)", score: s, comment: "الأثر الاجتماعي للبحث", notes: "يقيس مدى مساهمة الدراسة في التماسك الاجتماعي والعدالة" },
-    { name: "الحوكمة (G)", score: g, comment: "الإسهام في منظومة الحوكمة", notes: "يقيس مدى ارتباط الدراسة بالحوكمة والمؤسسات الفعالة" },
+    { name: "البيئة (E)", score: parseFloat(e.toFixed(1)), comment: "التأثير البيئي للبحث", notes: "يقيس مدى تناول الدراسة للأبعاد البيئية ضمن إطار ESG" },
+    { name: "المجتمع (S)", score: parseFloat(s.toFixed(1)), comment: "الأثر الاجتماعي للبحث", notes: "يقيس مدى مساهمة الدراسة في التماسك الاجتماعي والعدالة" },
+    { name: "الحوكمة (G)", score: parseFloat(g.toFixed(1)), comment: "الإسهام في منظومة الحوكمة", notes: "يقيس مدى ارتباط الدراسة بالحوكمة والمؤسسات الفعالة" },
   ];
 }
 
@@ -335,7 +422,7 @@ export async function analyzeSustainabilityDocument(
 
   // بناء المقاييس
   const metrics = buildMetrics(analysisText);
-  const pillars = buildPillars(analysisText);
+  const pillars = buildPillars(analysisText, specialization);
   onProgress?.('detailed_matrix', 70);
   await new Promise(r => setTimeout(r, 300));
 
