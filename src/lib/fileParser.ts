@@ -16,13 +16,11 @@ export async function detectFileType(file: File): Promise<string> {
   
   // DOCX (ZIP): PK..
   if (header[0] === 0x50 && header[1] === 0x4B && header[2] === 0x03 && header[3] === 0x04) {
-    // Both DOCX and ZIP start with PK
     if (file.type.includes('wordprocessingml') || file.name.endsWith('.docx')) {
       return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     }
   }
 
-  // Fallback to file.type or plaintext if it seems readable
   if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
     return 'text/plain';
   }
@@ -37,12 +35,29 @@ export interface ExtractedContent {
 }
 
 export async function extractTextFromPDF(file: File): Promise<ExtractedContent> {
-  console.log("extractTextFromPDF: Skipping local extraction, using direct PDF support for:", file.name);
-  return { 
-    text: '', 
-    sourceFile: file,
-    isImagePdf: true 
-  };
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items
+        .map((item: any) => item.str)
+        .join(' ');
+      fullText += pageText + '\n';
+    }
+
+    if (!fullText.trim()) {
+      return { text: '', sourceFile: file, isImagePdf: true };
+    }
+
+    return { text: fullText, sourceFile: file, isImagePdf: false };
+  } catch (error) {
+    console.error('PDF extraction error:', error);
+    return { text: '', sourceFile: file, isImagePdf: true };
+  }
 }
 
 export async function extractTextFromDocx(file: File): Promise<ExtractedContent> {
