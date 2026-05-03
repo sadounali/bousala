@@ -45,12 +45,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             </span>
           </div>
         </div>
-        <button
-          onClick={onGetStarted}
-          className="px-5 py-2 bg-oued-blue text-white rounded-xl text-sm font-bold hover:scale-105 transition-all shadow-md shadow-oued-blue/20"
-        >
-          ابدأ الآن
-        </button>
       </nav>
 
       {/* ── Hero ── */}
