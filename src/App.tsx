@@ -1,8 +1,16 @@
+if (!user && view === AppView.LANDING) {
+  return (
+    <LandingPage
+      onGetStarted={() => setView(AppView.PORTAL)}
+      onLogin={() => setView(AppView.PORTAL)}
+    />
+  );
+}
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-
+import LandingPage from './components/LandingPage';
 import React, { useState, useEffect } from 'react';
 import { Leaf, Award, FileSearch, Sparkles, RefreshCcw, ChevronLeft, LogIn, LogOut, User as UserIcon, Languages, Download, LayoutDashboard, History as HistoryIcon, GraduationCap, BookOpen, Menu, X, Eye, EyeOff, ArrowRight, ArrowLeft } from 'lucide-react';
 import { CompassLogo } from './components/CompassLogo';
@@ -35,7 +43,7 @@ import { UserTier, UserRole } from './types';
 import ActionLogger, { ActionLogEntry } from './components/ActionLogger';
 
 export default function App() {
-  const { user, loading: authLoading, tier, role } = useAuth();
+  const [view, setView] = useState<AppView>(AppView.LANDING);
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === 'ar';
   
