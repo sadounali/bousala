@@ -39,7 +39,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         <div className="flex items-center gap-3">
           <CompassLogo size={34} />
           <div className="flex flex-col">
-            <span className="text-lg font-bold tracking-tight text-oued-blue leading-none">بوصلة</span>
+الوادي 🎓            <span className="text-lg font-bold tracking-tight text-oued-blue leading-none">بوصلة جامعة </span>
             <span className="text-[9px] font-medium text-slate-400 mt-0.5 leading-none hidden md:inline">
               منصة تحليل مذكرات الطلبة · جامعة الوادي
             </span>
