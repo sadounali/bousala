@@ -6,7 +6,6 @@ import { CompassLogo } from './CompassLogo';
 interface LandingPageProps {
   onGetStarted: () => void;
 }
-
 const SDG_GOALS = [
   { num: 1,  label: 'القضاء على الفقر',        color: '#E5243B' },
   { num: 2,  label: 'القضاء على الجوع',         color: '#DDA63A' },
@@ -26,27 +25,23 @@ const SDG_GOALS = [
   { num: 16, label: 'السلام والعدالة',          color: '#00689D' },
   { num: 17, label: 'الشراكات',                 color: '#19486A' },
 ];
-
 const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   const [showTerms, setShowTerms] = useState(false);
   const [showContact, setShowContact] = useState(false);
-
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans" dir="rtl">
-
       {/* ── Navbar ── */}
       <nav className="h-16 bg-white border-b border-slate-100 px-6 flex items-center justify-between sticky top-0 z-50 shadow-sm">
         <div className="flex items-center gap-3">
           <CompassLogo size={34} />
           <div className="flex flex-col">
-الوادي 🎓            <span className="text-lg font-bold tracking-tight text-oued-blue leading-none">بوصلة جامعة </span>
+ال            <span className="text-lg font-bold tracking-tight text-oued-blue leading-none">بوصلة</span>
             <span className="text-[9px] font-medium text-slate-400 mt-0.5 leading-none hidden md:inline">
               منصة تحليل مذكرات الطلبة · جامعة الوادي
             </span>
           </div>
         </div>
       </nav>
-
       {/* ── Hero ── */}
       <section className="flex flex-col items-center justify-center text-center px-6 py-24 bg-gradient-to-b from-slate-50 to-white relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
@@ -68,20 +63,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             <span className="text-oued-gold">بذكاء واحترافية</span>
           </h1>
           <p className="text-slate-500 text-lg leading-relaxed max-w-xl mx-auto font-medium">
-            منصة بوصلة تُحلّل مذكرات التخرج وتقيّم مدى توافقها مع أهداف التنمية المستدامة الأممية — في ثوانٍ.
+        منصة بوصلة تُحلّل مذكرات التخرج وتقيّم مدى توافقها مع أهداف التنمية المستدامة  .
           </p>
           <div className="flex items-center justify-center pt-4">
             <button
               onClick={onGetStarted}
               className="flex items-center gap-3 px-8 py-4 bg-oued-blue text-white rounded-2xl text-base font-bold shadow-xl shadow-oued-blue/25 hover:scale-105 transition-all"
             >
-              ابدأ التحليل مجاناً
+              ابدأ التحليل
               <ArrowRight className="w-5 h-5 rotate-180" />
             </button>
           </div>
         </motion.div>
       </section>
-
       {/* ── Features ── */}
       <section className="py-20 px-6 bg-white">
         <div className="max-w-5xl mx-auto">
@@ -104,7 +98,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           </div>
         </div>
       </section>
-
       {/* ── SDG Matrix Section ── */}
       <section className="py-20 px-6 bg-slate-50">
         <div className="max-w-5xl mx-auto">
@@ -120,7 +113,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               تقوم المنصة بتحليل مذكرتك وربطها تلقائياً بأهداف التنمية المستدامة الـ 17 الصادرة عن الأمم المتحدة، وإظهار مدى مساهمة بحثك في تحقيق كل هدف.
             </p>
           </motion.div>
-
           {/* SDG colored squares */}
           <div className="grid grid-cols-6 sm:grid-cols-9 md:grid-cols-9 gap-2 mb-10 justify-items-center">
             {SDG_GOALS.map((sdg, i) => (
@@ -136,7 +128,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               </motion.div>
             ))}
           </div>
-
           {/* Steps */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
@@ -156,7 +147,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           </div>
         </div>
       </section>
-
       {/* ── CTA ── */}
       <section className="py-20 px-6 bg-oued-blue text-white text-center">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} className="max-w-2xl mx-auto space-y-6">
@@ -164,12 +154,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <h2 className="text-3xl font-black">جاهز لتحليل مذكرتك؟</h2>
           <p className="text-blue-100 text-base leading-relaxed">انضم لمئات الطلاب الذين يستخدمون بوصلة لتقييم مذكراتهم واحترافيتها.</p>
           <button onClick={onGetStarted} className="inline-flex items-center gap-3 px-8 py-4 bg-white text-oued-blue rounded-2xl text-base font-bold hover:scale-105 transition-all shadow-xl">
-            ابدأ الآن مجاناً
-            <ArrowRight className="w-5 h-5 rotate-180" />
+            ابدأ الآن 
+            <ArrowRiassName="w-5 h-5 rotate-180" />
           </button>
         </motion.div>
       </section>
-
       {/* ── Footer ── */}
       <footer className="py-8 px-8 bg-slate-900 text-slate-400">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
@@ -183,11 +172,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <div className="flex items-center gap-6 text-xs font-bold">
             <button onClick={() => setShowTerms(true)} className="hover:text-white transition-colors">الأحكام والشروط</button>
             <button onClick={() => setShowContact(true)} className="hover:text-white transition-colors">اتصل بنا</button>
-            <button onClick={onGetStarted} className="hover:text-white transition-colors">الدخول للمنصة</button>
           </div>
         </div>
       </footer>
-
       {/* ── Terms Modal ── */}
       <AnimatePresence>
         {showTerms && (
@@ -224,7 +211,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           </motion.div>
         )}
       </AnimatePresence>
-
       {/* ── Contact Modal ── */}
       <AnimatePresence>
         {showContact && (
@@ -264,9 +250,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           </motion.div>
         )}
       </AnimatePresence>
-
     </div>
   );
 };
-
 export default LandingPage;
