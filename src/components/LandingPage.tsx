@@ -67,7 +67,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-oued-blue/5 rounded-full border border-oued-blue/10 text-oued-blue text-xs font-bold">
             <Sparkles className="w-3.5 h-3.5" />
-            مدعوم بالذكاء الاصطناعي · Gemini AI
+             مدعوم بمصفوفة التنمية المستدامة SDG
           </div>
           <h1 className="text-5xl md:text-6xl font-black text-oued-blue tracking-tight leading-tight">
             حلّل مذكرتك<br />
@@ -147,7 +147,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
               { step: '01', title: 'رفع المذكرة', desc: 'ارفع ملف PDF مذكرتك بضغطة واحدة' },
-              { step: '02', title: 'التحليل الذكي', desc: 'يقرأ الذكاء الاصطناعي المحتوى ويحدد الأهداف ذات الصلة' },
+              { step: '02', title: 'التحليل الذكي', desc: 'تقرأ بوصلة المحتوى وتحدد الأهداف ذات الصلة' },
               { step: '03', title: 'مصفوفة النتائج', desc: 'تحصل على مصفوفة تفصيلية تُظهر نسبة التوافق مع كل هدف' },
             ].map((s, i) => (
               <motion.div key={i} initial={{ opacity: 0, x: -10 }} whileInView={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.15 }} viewport={{ once: true }}
@@ -247,8 +247,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <p className="text-slate-500 text-sm mb-8">نحن هنا للمساعدة. تواصل معنا عبر أي وسيلة.</p>
               <div className="space-y-5">
                 {[
-                  { icon: <Mail className="w-5 h-5" />, label: 'البريد الإلكتروني', value: 'contact@univ-eloued.dz', color: 'text-oued-blue bg-oued-blue/5' },
-                  { icon: <Phone className="w-5 h-5" />, label: 'الهاتف', value: '+213 (0) 32 xx xx xx', color: 'text-emerald-600 bg-emerald-50' },
+                  { icon: <Mail className="w-5 h-5" />, label: 'البريد الإلكتروني', value: 'sadoun-ali@univ-eloued.dz', color: 'text-oued-blue bg-oued-blue/5' },
+                  { icon: <Phone className="w-5 h-5" />, label: 'الهاتف', value: '+213 (0) 76 71 88 46', color: 'text-emerald-600 bg-emerald-50' },
                   { icon: <MapPin className="w-5 h-5" />, label: 'العنوان', value: 'جامعة الشهيد حمه لخضر — الوادي، الجزائر', color: 'text-oued-gold bg-oued-gold/5' },
                   { icon: <Globe className="w-5 h-5" />, label: 'الموقع الرسمي', value: 'www.univ-eloued.dz', color: 'text-purple-600 bg-purple-50' },
                 ].map((c, i) => (
