@@ -150,7 +150,7 @@ export default function App() {
                 return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
             });
 
-            const limit = 5;
+            const limit = 10;
             const remaining = Math.max(0, limit - monthAnalyses.length);
 
             logAction(
