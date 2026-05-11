@@ -65,7 +65,8 @@ function buildHTML(result: any, studentInfo: any, thesisInfo: any, serialNumber:
     `<div style="font-size:11px;margin-bottom:6px;color:#334155;">• ${o}</div>`).join('');
 
   // Page 2: all SDG cards
-  const allSdgCards = (result?.sdgs || []).slice(0,17).map((sdg: any) => {
+  const allSdgs17 = Array.from({length:17},(_,i)=>i+1).map(n => (result?.sdgs||[]).find((s:any)=>s.id===n)||{id:n,percentage:0,name:'',label:''});
+  const allSdgCards = allSdgs17.map((sdg: any) => {
     const pct = sdg.percentage || 0;
     const name = isAr ? (SDG_NAMES_AR[sdg.id] || sdg.name) : (sdg.label || sdg.name);
     return `
