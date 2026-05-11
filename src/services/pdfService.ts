@@ -1,13 +1,12 @@
 import jsPDF from 'jspdf';
 
 export interface ExportPdfOptions {
-  elementId1: string;
-  elementId2: string;
+  elementId1?: string;
+  elementId2?: string;
   serialNumber: string;
   onStart?: () => Promise<void>;
   onEnd?: () => Promise<void>;
   onError?: (error: any) => void;
-  // Direct data (bypasses html-to-image entirely)
   result?: any;
   studentInfo?: any;
   thesisInfo?: any;
@@ -21,312 +20,253 @@ const SDG_COLORS: Record<number, string> = {
   16:'#00689D',17:'#19486A'
 };
 
-function hexToRgb(hex: string): [number,number,number] {
-  const r = parseInt(hex.slice(1,3),16);
-  const g = parseInt(hex.slice(3,5),16);
-  const b = parseInt(hex.slice(5,7),16);
-  return [r,g,b];
-}
+const SDG_NAMES_AR: Record<number, string> = {
+  1:'القضاء على الفقر', 2:'القضاء على الجوع', 3:'الصحة الجيدة',
+  4:'التعليم الجيد', 5:'المساواة بين الجنسين', 6:'المياه النظيفة',
+  7:'الطاقة النظيفة', 8:'العمل اللائق', 9:'الصناعة والابتكار',
+  10:'الحد من التفاوت', 11:'المدن المستدامة', 12:'الإنتاج المسؤول',
+  13:'المناخ', 14:'الحياة تحت الماء', 15:'الحياة البرية',
+  16:'السلام والعدالة', 17:'الشراكات'
+};
 
-function buildPDF(
-  result: any,
-  studentInfo: any,
-  thesisInfo: any,
-  serialNumber: string,
-  lang: 'ar' | 'en'
-): jsPDF {
-  const pdf = new jsPDF('p','mm','a4');
-  const W = 210, H = 297;
+function buildHTML(result: any, studentInfo: any, thesisInfo: any, serialNumber: string, lang: 'ar' | 'en'): string {
   const isAr = lang === 'ar';
+  const dir = isAr ? 'rtl' : 'ltr';
+  const score = result?.overallScore || 0;
+  const sdgs = (result?.sdgs || []).filter((s: any) => (s.percentage || 0) > 0);
+  const pillars = result?.pillars || [];
+  const strengths = result?.strengths || [];
+  const opportunities = result?.opportunities || [];
 
-  // ── PAGE 1: COVER ────────────────────────────────────────────────────
-  // Top bar
-  pdf.setFillColor(27, 54, 93); // oued-blue
-  pdf.rect(0, 0, W, 6, 'F');
+  const sdgBoxes = sdgs.map((sdg: any) => `
+    <div style="display:inline-block;width:36px;height:36px;border-radius:8px;background:${SDG_COLORS[sdg.id]||'#64748b'};
+      color:white;font-weight:900;font-size:13px;line-height:36px;text-align:center;margin:3px;">
+      ${sdg.id}
+    </div>`).join('');
 
-  // Title
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(22);
-  pdf.setTextColor(27, 54, 93);
-  const mainTitle = isAr ? 'تقرير تقييم الأثر المرجعي' : 'Sustainability Impact Assessment Report';
-  pdf.text(mainTitle, W/2, 30, { align: 'center' });
-
-  pdf.setFontSize(11);
-  pdf.setTextColor(180, 150, 50);
-  const subTitle = isAr ? 'نتائج تدقيق مواءمة مذكرات التخرج' : 'Thesis Alignment Audit Results';
-  pdf.text(subTitle, W/2, 38, { align: 'center' });
-
-  // Gold line
-  pdf.setDrawColor(180, 150, 50);
-  pdf.setLineWidth(0.8);
-  pdf.line(W/2 - 20, 42, W/2 + 20, 42);
-
-  // Serial + date
-  pdf.setFontSize(8);
-  pdf.setTextColor(150,150,150);
-  pdf.setFont('helvetica','normal');
-  pdf.text(serialNumber, W - 14, 14, { align: 'right' });
-  pdf.text(new Date().toLocaleDateString(), W - 14, 19, { align: 'right' });
-
-  // Score circle (drawn with arcs)
-  const score = result.overallScore || 0;
-  const cx = 52, cy = 85, r = 28;
-  pdf.setDrawColor(240,244,248);
-  pdf.setLineWidth(4);
-  pdf.circle(cx, cy, r);
-  const [br,bg,bb] = hexToRgb('#1b365d');
-  pdf.setDrawColor(br,bg,bb);
-  pdf.setLineWidth(4);
-  // Draw arc for score (approximate with lines)
-  const steps = 60;
-  const startAngle = -Math.PI / 2;
-  const endAngle = startAngle + (score / 100) * 2 * Math.PI;
-  for (let i = 0; i < steps; i++) {
-    const a1 = startAngle + (i / steps) * (endAngle - startAngle);
-    const a2 = startAngle + ((i+1) / steps) * (endAngle - startAngle);
-    if (a2 > endAngle) break;
-    pdf.line(
-      cx + r * Math.cos(a1), cy + r * Math.sin(a1),
-      cx + r * Math.cos(a2), cy + r * Math.sin(a2)
-    );
-  }
-  pdf.setFontSize(18);
-  pdf.setFont('helvetica','bold');
-  pdf.setTextColor(27,54,93);
-  pdf.text(`${score}%`, cx, cy + 2, { align: 'center' });
-  pdf.setFontSize(7);
-  pdf.setTextColor(150,150,150);
-  pdf.text(isAr ? 'مؤشر التوافق' : 'Compatibility', cx, cy + 8, { align: 'center' });
-
-  // Student info box
-  pdf.setFillColor(248,250,252);
-  pdf.roundedRect(90, 50, W - 104, 70, 4, 4, 'F');
-  pdf.setFont('helvetica','bold');
-  pdf.setFontSize(8);
-  pdf.setTextColor(100,116,139);
-  pdf.text(isAr ? 'بيانات الطالب والمشروع' : 'STUDENT & PROJECT DATA', 96, 60);
-  pdf.setLineWidth(0.3);
-  pdf.setDrawColor(226,232,240);
-  pdf.line(90, 63, W - 14, 63);
-
-  const infoItems = [
-    { label: isAr ? 'الاسم' : 'Name', value: studentInfo?.fullName || 'N/A' },
-    { label: isAr ? 'الكلية' : 'Faculty', value: studentInfo?.faculty || 'N/A' },
-    { label: isAr ? 'القسم' : 'Department', value: studentInfo?.department || 'N/A' },
-    { label: isAr ? 'عنوان المذكرة' : 'Thesis Title', value: thesisInfo?.title || 'N/A' },
-    { label: isAr ? 'المشرف' : 'Supervisor', value: thesisInfo?.supervisor || 'N/A' },
-  ];
-  infoItems.forEach((item, i) => {
-    pdf.setFont('helvetica','bold');
-    pdf.setFontSize(7);
-    pdf.setTextColor(100,116,139);
-    pdf.text(item.label + ':', 96, 70 + i * 9);
-    pdf.setFont('helvetica','normal');
-    pdf.setTextColor(30,41,59);
-    const val = item.value.length > 40 ? item.value.slice(0,40) + '…' : item.value;
-    pdf.text(val, 125, 70 + i * 9);
-  });
-
-  // SDG Goals achieved
-  pdf.setFont('helvetica','bold');
-  pdf.setFontSize(9);
-  pdf.setTextColor(27,54,93);
-  pdf.text(isAr ? 'الأهداف المستدامة المحققة' : 'Achieved SDGs', W/2, 132, { align: 'center' });
-
-  const sdgs = (result.sdgs || []).filter((s: any) => (s.percentage || 0) > 0).slice(0, 17);
-  const boxSize = 14;
-  const totalWidth = sdgs.length * (boxSize + 3) - 3;
-  const startX = (W - totalWidth) / 2;
-
-  sdgs.forEach((sdg: any, i: number) => {
-    const x = startX + i * (boxSize + 3);
-    const [r2,g,b] = hexToRgb(SDG_COLORS[sdg.id] || '#64748b');
-    pdf.setFillColor(r2,g,b);
-    pdf.roundedRect(x, 136, boxSize, boxSize, 2, 2, 'F');
-    pdf.setFont('helvetica','bold');
-    pdf.setFontSize(7);
-    pdf.setTextColor(255,255,255);
-    pdf.text(String(sdg.id), x + boxSize/2, 136 + boxSize/2 + 1, { align: 'center' });
-  });
-
-  // Pillars bars
-  const pillars = result.pillars || [];
-  pdf.setFont('helvetica','bold');
-  pdf.setFontSize(9);
-  pdf.setTextColor(27,54,93);
-  pdf.text(isAr ? 'نتائج المجالات' : 'Pillar Scores', 14, 163);
-
-  pillars.forEach((p: any, i: number) => {
-    const yy = 168 + i * 13;
+  const pillarBars = pillars.map((p: any) => {
     const pct = ((p.score || 0) / 5) * 100;
-    pdf.setFont('helvetica','normal');
-    pdf.setFontSize(7);
-    pdf.setTextColor(71,85,105);
-    pdf.text(p.name, 14, yy + 4);
-    // Background bar
-    pdf.setFillColor(241,245,249);
-    pdf.roundedRect(65, yy, 110, 6, 1, 1, 'F');
-    // Score bar
-    const [r3,g3,b3] = hexToRgb('#1b365d');
-    pdf.setFillColor(r3,g3,b3);
-    pdf.roundedRect(65, yy, Math.max(2, 110 * pct / 100), 6, 1, 1, 'F');
-    // Percent
-    pdf.setFont('helvetica','bold');
-    pdf.setFontSize(7);
-    pdf.setTextColor(27,54,93);
-    pdf.text(`${pct.toFixed(0)}%`, 178, yy + 4);
-  });
+    return `
+    <div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-size:12px;color:#475569;">${p.name}</span>
+        <span style="font-size:12px;font-weight:700;color:#1b365d;">${pct.toFixed(0)}%</span>
+      </div>
+      <div style="background:#e2e8f0;border-radius:4px;height:8px;">
+        <div style="background:#1b365d;width:${pct}%;height:8px;border-radius:4px;"></div>
+      </div>
+    </div>`;
+  }).join('');
 
-  // Strengths
-  const strY = 168 + pillars.length * 13 + 8;
-  pdf.setFillColor(236,253,245);
-  pdf.roundedRect(14, strY, 86, 45, 3, 3, 'F');
-  pdf.setFont('helvetica','bold');
-  pdf.setFontSize(8);
-  pdf.setTextColor(5,150,105);
-  pdf.text(isAr ? 'نقاط القوة' : 'Strengths', 20, strY + 8);
-  pdf.setFont('helvetica','normal');
-  pdf.setFontSize(7);
-  pdf.setTextColor(51,65,85);
-  (result.strengths || []).slice(0,3).forEach((s: string, i: number) => {
-    const lines = pdf.splitTextToSize('• ' + s, 75);
-    pdf.text(lines[0], 20, strY + 15 + i * 10);
-  });
+  const strengthItems = strengths.slice(0,3).map((s: string) =>
+    `<div style="font-size:11px;margin-bottom:6px;color:#334155;">• ${s}</div>`).join('');
 
-  // Opportunities
-  pdf.setFillColor(255,251,235);
-  pdf.roundedRect(110, strY, 86, 45, 3, 3, 'F');
-  pdf.setFont('helvetica','bold');
-  pdf.setFontSize(8);
-  pdf.setTextColor(180,83,9);
-  pdf.text(isAr ? 'توصيات' : 'Recommendations', 116, strY + 8);
-  pdf.setFont('helvetica','normal');
-  pdf.setFontSize(7);
-  pdf.setTextColor(51,65,85);
-  (result.opportunities || []).slice(0,3).forEach((o: string, i: number) => {
-    const lines = pdf.splitTextToSize('• ' + o, 75);
-    pdf.text(lines[0], 116, strY + 15 + i * 10);
-  });
+  const oppItems = opportunities.slice(0,3).map((o: string) =>
+    `<div style="font-size:11px;margin-bottom:6px;color:#334155;">• ${o}</div>`).join('');
 
-  // Footer page 1
-  pdf.setFillColor(248,250,252);
-  pdf.rect(0, H - 12, W, 12, 'F');
-  pdf.setFont('helvetica','normal');
-  pdf.setFontSize(7);
-  pdf.setTextColor(148,163,184);
-  pdf.text('University of El Oued — Sustainability Office', 14, H - 5);
-  pdf.text('01 / 02', W/2, H - 5, { align: 'center' });
-  pdf.text(new Date().toLocaleDateString(), W - 14, H - 5, { align: 'right' });
-
-  // ── PAGE 2: SDG DETAILS ──────────────────────────────────────────────
-  pdf.addPage();
-  pdf.setFillColor(180, 150, 50);
-  pdf.rect(0, 0, W, 6, 'F');
-
-  pdf.setFont('helvetica','bold');
-  pdf.setFontSize(16);
-  pdf.setTextColor(27,54,93);
-  pdf.text(isAr ? 'تفاصيل مؤشرات التنمية المستدامة' : 'SDG Alignment Details', W/2, 20, { align: 'center' });
-
-  // SDG cards grid
-  const allSdgs = (result.sdgs || []).slice(0, 17);
-  const cols = 4;
-  const cardW = 44, cardH = 28;
-  const startXG = 14, startYG = 28;
-  const gapX = (W - startXG*2 - cols * cardW) / (cols - 1);
-
-  allSdgs.forEach((sdg: any, idx: number) => {
-    const col = idx % cols;
-    const row = Math.floor(idx / cols);
-    const cx2 = startXG + col * (cardW + gapX);
-    const cy2 = startYG + row * (cardH + 4);
+  // Page 2: all SDG cards
+  const allSdgCards = (result?.sdgs || []).slice(0,17).map((sdg: any) => {
     const pct = sdg.percentage || 0;
-    const [r4,g4,b4] = hexToRgb(SDG_COLORS[sdg.id] || '#64748b');
+    const name = isAr ? (SDG_NAMES_AR[sdg.id] || sdg.name) : (sdg.label || sdg.name);
+    return `
+    <div style="width:160px;border-radius:10px;background:#f8fafc;padding:10px;margin:5px;display:inline-block;vertical-align:top;box-sizing:border-box;border-right:4px solid ${SDG_COLORS[sdg.id]||'#64748b'};">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <div style="width:28px;height:28px;border-radius:6px;background:${SDG_COLORS[sdg.id]||'#64748b'};
+          color:white;font-weight:900;font-size:12px;line-height:28px;text-align:center;flex-shrink:0;">${sdg.id}</div>
+        <span style="font-size:10px;font-weight:700;color:#1e293b;line-height:1.3;">${name}</span>
+      </div>
+      <div style="background:#e2e8f0;border-radius:3px;height:6px;margin-bottom:4px;">
+        <div style="background:${SDG_COLORS[sdg.id]||'#64748b'};width:${pct}%;height:6px;border-radius:3px;min-width:${pct>0?'4px':'0'};"></div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:${SDG_COLORS[sdg.id]||'#64748b'};text-align:${isAr?'left':'right'};">${pct}%</div>
+    </div>`;
+  }).join('');
 
-    // Card bg
-    pdf.setFillColor(248,250,252);
-    pdf.roundedRect(cx2, cy2, cardW, cardH, 3, 3, 'F');
-
-    // Color accent left bar
-    pdf.setFillColor(r4,g4,b4);
-    pdf.roundedRect(cx2, cy2, 3, cardH, 1, 1, 'F');
-
-    // SDG number badge
-    pdf.setFillColor(r4,g4,b4);
-    pdf.roundedRect(cx2 + 5, cy2 + 4, 10, 10, 2, 2, 'F');
-    pdf.setFont('helvetica','bold');
-    pdf.setFontSize(8);
-    pdf.setTextColor(255,255,255);
-    pdf.text(String(sdg.id), cx2 + 10, cy2 + 11, { align: 'center' });
-
-    // SDG name
-    pdf.setFont('helvetica','bold');
-    pdf.setFontSize(6.5);
-    pdf.setTextColor(30,41,59);
-    const name = (isAr ? sdg.name : sdg.label) || '';
-    const nameLines = pdf.splitTextToSize(name, cardW - 20);
-    pdf.text(nameLines[0], cx2 + 17, cy2 + 9);
-    if (nameLines[1]) pdf.text(nameLines[1], cx2 + 17, cy2 + 14);
-
-    // Progress bar
-    pdf.setFillColor(226,232,240);
-    pdf.roundedRect(cx2 + 5, cy2 + 18, cardW - 10, 3, 1, 1, 'F');
-    if (pct > 0) {
-      pdf.setFillColor(r4,g4,b4);
-      pdf.roundedRect(cx2 + 5, cy2 + 18, Math.max(2, (cardW - 10) * pct / 100), 3, 1, 1, 'F');
-    }
-
-    // Percentage
-    pdf.setFont('helvetica','bold');
-    pdf.setFontSize(7);
-    pdf.setTextColor(r4,g4,b4);
-    pdf.text(`${pct}%`, cx2 + cardW - 5, cy2 + 21, { align: 'right' });
-  });
-
-  // Summary box
-  const sumY = startYG + Math.ceil(allSdgs.length / cols) * (cardH + 4) + 8;
-  pdf.setFillColor(27,54,93);
-  pdf.roundedRect(14, sumY, W - 28, 35, 4, 4, 'F');
-  pdf.setFont('helvetica','bold');
-  pdf.setFontSize(8);
-  pdf.setTextColor(180,150,50);
-  pdf.text(isAr ? 'الخلاصة التقييمية' : 'Assessment Summary', W/2, sumY + 9, { align: 'center' });
-  pdf.setFont('helvetica','normal');
-  pdf.setFontSize(8);
-  pdf.setTextColor(255,255,255);
-  const topPillar = (result.pillars || []).sort((a: any,b: any) => (b.score||0)-(a.score||0))[0]?.name || '';
+  const topPillar = pillars.sort((a: any,b: any) => (b.score||0)-(a.score||0))[0]?.name || '';
   const summary = isAr
     ? `تم تحديد مواءمة قوية مع ركائز التنمية المستدامة. سجلت المذكرة نقاطاً عالية في ${topPillar}.`
-    : `Strong alignment with sustainable development pillars identified. Top performance in ${topPillar}.`;
-  const summaryLines = pdf.splitTextToSize(summary, W - 48);
-  pdf.text(summaryLines, W/2, sumY + 18, { align: 'center' });
+    : `Strong alignment identified. Top performance in ${topPillar}.`;
 
-  // Footer page 2
-  pdf.setFillColor(248,250,252);
-  pdf.rect(0, H - 12, W, 12, 'F');
-  pdf.setFont('helvetica','normal');
-  pdf.setFontSize(7);
-  pdf.setTextColor(148,163,184);
-  pdf.text('University of El Oued — Sustainability Office', 14, H - 5);
-  pdf.text('02 / 02', W/2, H - 5, { align: 'center' });
-  pdf.text(serialNumber, W - 14, H - 5, { align: 'right' });
+  return `<!DOCTYPE html>
+<html dir="${dir}">
+<head>
+<meta charset="UTF-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Cairo', Arial, sans-serif; background: white; color: #1e293b; }
+  .page { width: 794px; min-height: 1123px; padding: 0; background: white; position: relative; page-break-after: always; }
+</style>
+</head>
+<body>
 
-  return pdf;
+<!-- PAGE 1 -->
+<div class="page" id="pdf-html-page1">
+  <!-- Top bar -->
+  <div style="background:#1b365d;height:8px;width:100%;"></div>
+
+  <!-- Header -->
+  <div style="text-align:center;padding:24px 40px 16px;">
+    <div style="font-size:24px;font-weight:900;color:#1b365d;">
+      ${isAr ? 'تقرير تقييم الأثر المرجعي' : 'Sustainability Impact Assessment Report'}
+    </div>
+    <div style="font-size:13px;color:#b4963c;margin-top:6px;font-weight:700;">
+      ${isAr ? 'نتائج تدقيق مواءمة مذكرات التخرج' : 'Thesis Alignment Audit Results'}
+    </div>
+    <div style="width:60px;height:3px;background:#b4963c;margin:10px auto;border-radius:2px;"></div>
+  </div>
+
+  <!-- Serial + Date -->
+  <div style="position:absolute;top:20px;${isAr?'left':'right'}:30px;text-align:${isAr?'left':'right'};">
+    <div style="font-size:9px;color:#94a3b8;">${serialNumber}</div>
+    <div style="font-size:9px;color:#94a3b8;">${new Date().toLocaleDateString(isAr?'ar-DZ':'en-GB')}</div>
+  </div>
+
+  <!-- Score + Info -->
+  <div style="display:flex;gap:20px;padding:0 40px 20px;align-items:flex-start;">
+    <!-- Score Circle -->
+    <div style="flex-shrink:0;width:140px;height:140px;border-radius:50%;background:white;
+      border:8px solid #1b365d;display:flex;flex-direction:column;align-items:center;
+      justify-content:center;box-shadow:0 4px 20px rgba(27,54,93,0.15);">
+      <div style="font-size:32px;font-weight:900;color:#1b365d;">${score}%</div>
+      <div style="font-size:10px;color:#94a3b8;font-weight:700;">${isAr?'مؤشر التوافق':'Compatibility'}</div>
+    </div>
+
+    <!-- Student Info -->
+    <div style="flex:1;background:#f8fafc;border-radius:12px;padding:16px;border:1px solid #e2e8f0;">
+      <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;border-bottom:1px solid #e2e8f0;padding-bottom:8px;">
+        ${isAr?'بيانات الطالب والمشروع':'STUDENT & PROJECT DATA'}
+      </div>
+      ${[
+        [isAr?'الاسم':'Name', studentInfo?.fullName||'N/A'],
+        [isAr?'الكلية':'Faculty', studentInfo?.faculty||'N/A'],
+        [isAr?'القسم':'Department', studentInfo?.department||'N/A'],
+        [isAr?'عنوان المذكرة':'Thesis Title', thesisInfo?.title||'N/A'],
+        [isAr?'المشرف':'Supervisor', thesisInfo?.supervisor||'N/A'],
+      ].map(([label, val]) => `
+        <div style="display:flex;gap:8px;margin-bottom:7px;font-size:12px;">
+          <span style="color:#64748b;font-weight:700;min-width:90px;flex-shrink:0;">${label}:</span>
+          <span style="color:#1e293b;">${String(val).slice(0,50)}</span>
+        </div>`).join('')}
+    </div>
+  </div>
+
+  <!-- SDG Achieved -->
+  <div style="padding:0 40px 16px;">
+    <div style="font-size:13px;font-weight:700;color:#1b365d;margin-bottom:10px;text-align:center;">
+      ${isAr?'الأهداف المستدامة المحققة':'Achieved SDGs'}
+    </div>
+    <div style="text-align:center;">${sdgBoxes}</div>
+  </div>
+
+  <!-- Pillars -->
+  <div style="padding:0 40px 16px;">
+    <div style="font-size:13px;font-weight:700;color:#1b365d;margin-bottom:12px;">
+      ${isAr?'نتائج المجالات':'Pillar Scores'}
+    </div>
+    ${pillarBars}
+  </div>
+
+  <!-- Strengths + Opportunities -->
+  <div style="display:flex;gap:16px;padding:0 40px 20px;">
+    <div style="flex:1;background:#ecfdf5;border-radius:10px;padding:14px;">
+      <div style="font-size:12px;font-weight:700;color:#059669;margin-bottom:8px;">
+        ${isAr?'نقاط القوة':'Strengths'}
+      </div>
+      ${strengthItems}
+    </div>
+    <div style="flex:1;background:#fffbeb;border-radius:10px;padding:14px;">
+      <div style="font-size:12px;font-weight:700;color:#b45309;margin-bottom:8px;">
+        ${isAr?'التوصيات':'Recommendations'}
+      </div>
+      ${oppItems}
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div style="position:absolute;bottom:0;left:0;right:0;background:#f8fafc;padding:10px 40px;
+    display:flex;justify-content:space-between;font-size:9px;color:#94a3b8;border-top:1px solid #e2e8f0;">
+    <span>University of El Oued — Sustainability Office</span>
+    <span>01 / 02</span>
+    <span>${new Date().toLocaleDateString()}</span>
+  </div>
+</div>
+
+<!-- PAGE 2 -->
+<div class="page" id="pdf-html-page2" style="padding-top:0;">
+  <div style="background:#b4963c;height:8px;width:100%;"></div>
+  <div style="padding:24px 40px 16px;text-align:center;">
+    <div style="font-size:20px;font-weight:900;color:#1b365d;">
+      ${isAr?'تفاصيل مؤشرات التنمية المستدامة':'SDG Alignment Details'}
+    </div>
+  </div>
+
+  <div style="padding:0 30px;text-align:center;">
+    ${allSdgCards}
+  </div>
+
+  <!-- Summary -->
+  <div style="margin:20px 40px;background:#1b365d;border-radius:12px;padding:20px;text-align:center;">
+    <div style="font-size:13px;font-weight:700;color:#b4963c;margin-bottom:8px;">
+      ${isAr?'الخلاصة التقييمية':'Assessment Summary'}
+    </div>
+    <div style="font-size:12px;color:white;line-height:1.7;">${summary}</div>
+  </div>
+
+  <!-- Footer -->
+  <div style="position:absolute;bottom:0;left:0;right:0;background:#f8fafc;padding:10px 40px;
+    display:flex;justify-content:space-between;font-size:9px;color:#94a3b8;border-top:1px solid #e2e8f0;">
+    <span>University of El Oued — Sustainability Office</span>
+    <span>02 / 02</span>
+    <span>${serialNumber}</span>
+  </div>
+</div>
+
+</body></html>`;
+}
+
+async function capturePage(html: string, pageId: string): Promise<string | null> {
+  // Create hidden iframe
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:none;z-index:-1;';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument!;
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  // Wait for fonts and layout
+  await new Promise(resolve => setTimeout(resolve, 2500));
+
+  const page = doc.getElementById(pageId);
+  if (!page) { document.body.removeChild(iframe); return null; }
+
+  try {
+    const { toPng } = await import('html-to-image');
+    const dataUrl = await toPng(page, {
+      quality: 1,
+      pixelRatio: 2,
+      width: 794,
+      cacheBust: true,
+    });
+    document.body.removeChild(iframe);
+    return dataUrl;
+  } catch(e) {
+    document.body.removeChild(iframe);
+    console.error('[PDF] capture failed', e);
+    return null;
+  }
 }
 
 function downloadPDF(pdf: jsPDF, filename: string) {
-  const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
-
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   if (isMobile) {
     const blob = pdf.output('blob');
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.target = '_blank';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   } else {
     pdf.save(filename);
@@ -334,30 +274,33 @@ function downloadPDF(pdf: jsPDF, filename: string) {
 }
 
 export async function exportAnalysisToPDF({
-  serialNumber,
-  onStart,
-  onEnd,
-  onError,
-  result,
-  studentInfo,
-  thesisInfo,
-  lang = 'ar',
+  serialNumber, onStart, onEnd, onError,
+  result, studentInfo, thesisInfo, lang = 'ar',
 }: ExportPdfOptions) {
   try {
     await onStart?.();
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(r => setTimeout(r, 300));
 
-    if (!result) throw new Error('No result data provided');
+    if (!result) throw new Error('No result data');
 
-    const pdf = buildPDF(result, studentInfo || {}, thesisInfo || {}, serialNumber, lang);
-    const filename = `SA-COMPASS-${serialNumber}.pdf`;
-    downloadPDF(pdf, filename);
+    const html = buildHTML(result, studentInfo||{}, thesisInfo||{}, serialNumber, lang);
 
-  } catch (error) {
-    console.error('[PDF] Export failed:', error);
-    onError?.(error);
+    const pdf = new jsPDF('p','mm','a4');
+    const W = pdf.internal.pageSize.getWidth();
+    const H = pdf.internal.pageSize.getHeight();
+
+    const img1 = await capturePage(html, 'pdf-html-page1');
+    if (img1) pdf.addImage(img1,'PNG',0,0,W,H,undefined,'FAST');
+
+    const img2 = await capturePage(html, 'pdf-html-page2');
+    if (img2) { pdf.addPage(); pdf.addImage(img2,'PNG',0,0,W,H,undefined,'FAST'); }
+
+    downloadPDF(pdf, `SA-COMPASS-${serialNumber}.pdf`);
+
+  } catch(e) {
+    console.error('[PDF]', e);
+    onError?.(e);
   } finally {
     await onEnd?.();
   }
-                    }
-                                          
+}
